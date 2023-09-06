@@ -15,14 +15,6 @@ if [[ -z ${FILES} ]];then
         exit 2
 fi
 
-getKey(){
-        arr=${1}
-        value=${2}
-        for k in ${!arr[@]};do
-                [[ ${arr[$k]} == ${value} ]] && echo "${k}"
-        done
-}
-
 for file in $FILES;do
         CNAME=$(awk -F ":" '/hostname/ {print $2}' $file | tr -d ' ')
         NODE=$(echo ${file#$BPATH/} | cut -d'/' -f-1)
