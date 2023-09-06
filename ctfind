@@ -1,0 +1,58 @@
+#!/bin/bash
+declare -A CTIDNAME
+declare -A CTIDNODE
+BPATH='/etc/pve/nodes'
+NAME=$1
+FILES=$(grep -Ril "hostname:.*${NAME}.*$" $BPATH/*/lxc/*.conf)
+
+if [ -z ${NAME} ];then
+        echo 'Please write ct name to find it'
+        exit 1
+fi
+
+if [[ -z ${FILES} ]];then
+        echo 'Cant find ct whith this name'
+        exit 2
+fi
+
+getKey(){
+        arr=${1}
+        value=${2}
+        for k in ${!arr[@]};do
+                [[ ${arr[$k]} == ${value} ]] && echo "${k}"
+        done
+}
+
+for file in $FILES;do
+        CNAME=$(awk -F ":" '/hostname/ {print $2}' $file | tr -d ' ')
+        NODE=$(echo ${file#$BPATH/} | cut -d'/' -f-1)
+        CTID=$(basename $file)
+        CTIDNAME+=([${CTID%.*}]=${CNAME})
+        CTIDNODE+=([${CTID%.*}]=${NODE})
+done
+
+KEYS=("${!CTIDNODE[@]}")
+for (( i=0; $i < ${#CTIDNODE[@]}; i+=1 ));do
+        KEY=${KEYS[$i]}
+        CTNAME=${CTIDNAME[$KEY]}
+        echo -e "($i)\t[${CTIDNODE[$KEY]}]\t[${KEY}]\t${CTNAME}" 
+done
+
+read -p "Go to server ? [Number/No]: " number
+
+
+case "$number" in
+        [0-9]*)
+                if [ "$number" -ge "${#CTIDNAME[@]}" ];then
+                        echo 'Number out of range'
+                        exit 3
+                fi
+                KEY=${KEYS[$number]}
+                echo "Trying enter to CT ${KEY} with name ${CTIDNAME[${KEY}]} on ${CTIDNODE[${KEY}]}"
+                ssh ${CTIDNODE[${KEY}]} -t "pct enter ${KEY}"
+                ;;
+        [Nn]*) 
+                echo "Okay, bye" ;;
+        *) 
+                echo "Can't recognize your answer" ;;
+esac
